@@ -151,18 +151,29 @@
     </div>
 
 <script>
-    /* --- AUDIO ENGINE --- */
-    let audioCtx, osc, laryngealTwitch, filter, breathingGain, masterGain;
-    let isRunning = false;
-    let hapticInterval;
+/* --- MOBILE-OPTIMIZED AUDIO ENGINE --- */
+let audioCtx, osc, laryngealTwitch, filter, breathingGain, masterGain;
+let isRunning = false;
+let hapticInterval;
 
-    const masterBtn = document.getElementById('masterBtn');
-    const orb = document.getElementById('orb');
-    const s_rumble = document.getElementById('rumble');
-    const s_speed = document.getElementById('speed');
+const masterBtn = document.getElementById('masterBtn');
+const orb = document.getElementById('orb');
+const s_rumble = document.getElementById('rumble');
+const s_speed = document.getElementById('speed');
 
-    function initAudio() {
+function startAudioEngine() {
+    // 1. Create Audio Context ONLY after user click
+    if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    // 2. Force Resume (Required for Mobile Safari/Chrome)
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    // 3. Setup Nodes if they don't exist
+    if (!osc) {
         osc = audioCtx.createOscillator();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(s_rumble.value, audioCtx.currentTime);
@@ -193,62 +204,64 @@
         osc.start();
         twitchOsc.start();
     }
+}
 
-    function toggleApp() {
-        if (!audioCtx) initAudio();
+function toggleApp() {
+    // Force the engine to start/resume on every click
+    startAudioEngine();
 
-        if (!isRunning) {
-            audioCtx.resume();
-            masterGain.gain.setTargetAtTime(0.8, audioCtx.currentTime, 0.5);
-            masterBtn.innerText = "DEACTIVATE";
-            masterBtn.classList.add('active');
-            isRunning = true;
-            runLoops();
-        } else {
-            masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
-            masterBtn.innerText = "ACTIVATE HEALING";
-            masterBtn.classList.remove('active');
-            isRunning = false;
-        }
+    if (!isRunning) {
+        masterGain.gain.setTargetAtTime(0.8, audioCtx.currentTime, 0.5);
+        masterBtn.innerText = "DEACTIVATE";
+        masterBtn.classList.add('active');
+        isRunning = true;
+        runLoops();
+    } else {
+        masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+        masterBtn.innerText = "ACTIVATE HEALING";
+        masterBtn.classList.remove('active');
+        isRunning = false;
+        if (hapticInterval) clearInterval(hapticInterval);
+    }
+}
+
+function runLoops() {
+    if (!isRunning) return;
+    const now = audioCtx.currentTime;
+    const cycle = parseFloat(s_speed.value);
+
+    // Inhale/Exhale Swell
+    breathingGain.gain.setTargetAtTime(0.7, now, cycle / 3);
+    breathingGain.gain.setTargetAtTime(0.2, now + (cycle / 2), cycle / 3);
+
+    // Visual Sync
+    orb.style.transform = `scale(${1 + (breathingGain.gain.value * 0.5)})`;
+    orb.style.opacity = 0.3 + breathingGain.gain.value;
+
+    // Haptic Check (Only runs on devices that support it)
+    if (navigator.vibrate && breathingGain.gain.value > 0.5) {
+        navigator.vibrate(20);
     }
 
-    function runLoops() {
-        if (!isRunning) return;
-        const now = audioCtx.currentTime;
-        const cycle = parseFloat(s_speed.value);
+    setTimeout(runLoops, 100);
+}
 
-        breathingGain.gain.setTargetAtTime(0.7, now, cycle / 3);
-        breathingGain.gain.setTargetAtTime(0.2, now + (cycle / 2), cycle / 3);
+// Attach the listener
+masterBtn.addEventListener('click', toggleApp);
 
-        // Anti-Robot Jitter
-        const jitter = (Math.random() - 0.5) * 1.5;
-        osc.frequency.setTargetAtTime(parseFloat(s_rumble.value) + jitter, now, 0.1);
+// Standard Slider Listeners
+s_rumble.addEventListener('input', (e) => {
+    document.getElementById('rumbleDisp').innerText = e.target.value + 'Hz';
+    if (osc) osc.frequency.setTargetAtTime(e.target.value, audioCtx.currentTime, 0.1);
+});
+s_speed.addEventListener('input', (e) => {
+    document.getElementById('speedDisp').innerText = e.target.value + 's';
+});
 
-        // Visual Sync
-        orb.style.transform = `scale(${1 + (breathingGain.gain.value * 0.5)})`;
-        orb.style.opacity = 0.3 + breathingGain.gain.value;
-
-        // Haptics (Android Only)
-        if (navigator.vibrate && breathingGain.gain.value > 0.5) {
-            navigator.vibrate(20);
-        }
-
-        setTimeout(runLoops, 100);
-    }
-
-    masterBtn.addEventListener('click', toggleApp);
-    s_rumble.addEventListener('input', (e) => {
-        document.getElementById('rumbleDisp').innerText = e.target.value + 'Hz';
-        if (osc) osc.frequency.setTargetAtTime(e.target.value, audioCtx.currentTime, 0.1);
-    });
-    s_speed.addEventListener('input', (e) => {
-        document.getElementById('speedDisp').innerText = e.target.value + 's';
-    });
-
-    // PWA Service Worker Registration
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
-    }
+// Register Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+}
 </script>
 </body>
 </html>
