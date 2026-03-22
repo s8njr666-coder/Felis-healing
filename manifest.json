@@ -1,0 +1,15 @@
+{
+  "name": "FelisHealing",
+  "short_name": "FelisHealing",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1864/1864514.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

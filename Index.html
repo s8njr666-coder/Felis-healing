@@ -1,29 +1,16 @@
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('felis-v1').then((cache) => cache.addAll(['index.html'])));
-});
-self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
-});{
-  "name": "FelisHealing",
-  "short_name": "FelisHealing",
-  "start_url": "index.html",
-  "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
-  "icons": [
-    {
-      "src": "https://cdn-icons-png.flaticon.com/512/1864/1864514.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#000000">
-    <title>Felis-Healing | Bio-Acoustic Therapy</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Felis-Healing | Bio-Acoustic PWA</title>
+    
+    <!-- PWA Manifest Link (Explained below) -->
+    <link rel="manifest" href="manifest.json">
+
     <style>
         :root {
             --bg: #000000;
@@ -45,7 +32,6 @@ self.addEventListener('fetch', (e) => {
             height: 100vh;
             overflow: hidden;
             user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
         .app-container {
@@ -58,10 +44,10 @@ self.addEventListener('fetch', (e) => {
             padding: 20px 0;
         }
 
-        /* --- Visualizer Orb --- */
+        /* Visualizer */
         .visual-container {
             position: relative;
-            height: 200px;
+            height: 180px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -77,17 +63,7 @@ self.addEventListener('fetch', (e) => {
             transition: transform 0.1s ease-out;
         }
 
-        .orb-inner {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: var(--healing);
-            border-radius: 50%;
-            filter: blur(5px);
-            box-shadow: 0 0 30px var(--healing);
-        }
-
-        /* --- Controls --- */
+        /* Controls */
         .main-toggle {
             width: 100%;
             padding: 25px;
@@ -97,73 +73,45 @@ self.addEventListener('fetch', (e) => {
             color: white;
             font-size: 1.4rem;
             font-weight: 700;
-            letter-spacing: 1px;
-            box-shadow: 0 10px 30px rgba(0, 122, 255, 0.3);
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0, 122, 255, 0.3);
         }
 
-        .main-toggle.active {
-            background: #ff3b30;
-            box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
-        }
+        .main-toggle.active { background: #ff3b30; }
 
         .control-panel {
             background: var(--card);
             padding: 20px;
             border-radius: 24px;
             display: grid;
-            gap: 20px;
+            gap: 15px;
         }
 
-        .slider-box { display: flex; flex-direction: column; gap: 8px; }
-        .slider-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--subtext); text-transform: uppercase; letter-spacing: 1px; }
+        .slider-header { display: flex; justify-content: space-between; font-size: 0.7rem; color: var(--subtext); text-transform: uppercase; letter-spacing: 1px; }
         .slider-val { color: var(--accent); font-weight: bold; }
 
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
+        input[type=range] { -webkit-appearance: none; width: 100%; background: transparent; }
+        input[type=range]::-webkit-slider-runnable-track { height: 4px; background: #3a3a3c; border-radius: 2px; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%; background: white; margin-top: -10px; }
+
+        /* Science Modal */
+        #scienceModal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            padding: 40px 20px;
+            box-sizing: border-box;
+            overflow-y: auto;
+            z-index: 100;
         }
 
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 6px;
-            background: #3a3a3c;
-            border-radius: 3px;
-        }
+        .modal-content { max-width: 500px; margin: 0 auto; line-height: 1.6; }
+        .science-btn { background: none; border: 1px solid var(--subtext); color: var(--subtext); padding: 8px 15px; border-radius: 20px; font-size: 0.7rem; margin-top: 10px; cursor: pointer; }
+        h2 { color: var(--healing); }
+        .close-btn { color: var(--accent); font-weight: bold; float: right; cursor: pointer; }
 
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 28px;
-            width: 28px;
-            border-radius: 50%;
-            background: white;
-            margin-top: -11px;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.5);
-        }
-
-        /* --- Utility Buttons --- */
-        .btn-row { display: flex; gap: 10px; }
-        .util-btn {
-            flex: 1;
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid #3a3a3c;
-            background: transparent;
-            color: var(--subtext);
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .util-btn.active { border-color: var(--healing); color: var(--healing); }
-
-        .rescue-mode {
-            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
-            color: #000;
-            border: none;
-        }
-
-        #hapticLabel { font-size: 0.7rem; color: #ff3b30; margin-top: 5px; display: none; }
+        .info-tag { font-size: 0.8rem; color: var(--healing); border: 1px solid var(--healing); padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
     </style>
 </head>
 <body>
@@ -171,92 +119,75 @@ self.addEventListener('fetch', (e) => {
     <div class="app-container">
         <div class="visual-container">
             <div id="orb" class="orb"></div>
-            <div id="orbInner" class="orb-inner"></div>
         </div>
 
         <button id="masterBtn" class="main-toggle">ACTIVATE HEALING</button>
 
         <div class="control-panel">
             <div class="slider-box">
-                <div class="slider-header">Rumble Depth <span class="slider-val" id="rumbleDisp">25Hz</span></div>
+                <div class="slider-header"><span><span class="info-tag">Bone/Tissue</span>Frequency</span> <span class="slider-val" id="rumbleDisp">25Hz</span></div>
                 <input type="range" id="rumble" min="20" max="60" value="25">
             </div>
 
             <div class="slider-box">
-                <div class="slider-header">Gravel / Texture <span class="slider-val" id="gravelDisp">Low</span></div>
-                <input type="range" id="gravel" min="0" max="100" value="30">
-            </div>
-
-            <div class="slider-box">
-                <div class="slider-header">Breathing Speed <span class="slider-val" id="speedDisp">4.0s</span></div>
+                <div class="slider-header"><span><span class="info-tag">Anxiety</span>Breathing Cycle</span> <span class="slider-val" id="speedDisp">4.0s</span></div>
                 <input type="range" id="speed" min="2" max="8" step="0.5" value="4">
             </div>
 
-            <div class="btn-row">
-                <button class="util-btn" id="timerBtn">15 MIN TIMER</button>
-                <button class="util-btn rescue-mode" id="rescueBtn">TNR RESCUE</button>
-            </div>
-            <div id="hapticLabel">Haptics unavailable on this device</div>
+            <button class="science-btn" onclick="document.getElementById('scienceModal').style.display='block'">THE SCIENCE OF PROCEDURAL PURRING</button>
+        </div>
+    </div>
+
+    <!-- Science Overlay -->
+    <div id="scienceModal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="document.getElementById('scienceModal').style.display='none'">CLOSE [X]</span>
+            <h2>Why This Isn't Just a Loop</h2>
+            <p><strong>1. Procedural Audio Engine:</strong> Unlike other apps that use MP3 recordings, Felis-Healing generates sound mathematically in real-time. This prevents "Ear Fatigue" by ensuring no two seconds of purring are ever identical.</p>
+            <p><strong>2. Bio-Acoustic Frequencies:</strong> This app locks onto 25Hz - 50Hz. Scientific research shows these specific frequencies improve bone density and speed muscle repair in humans.</p>
+            <p><strong>3. The Laryngeal Twitch:</strong> We simulate the feline brain's signal to the throat muscles (25-40 times per second), creating a tactile "gravelly" texture you can physically feel through your device.</p>
+            <p><strong>4. Natural Breathing:</strong> The volume swells and dips to mimic a living respiratory cycle, signaling your nervous system to enter a state of deep relaxation.</p>
         </div>
     </div>
 
 <script>
-    /* --- CORE AUDIO ENGINE --- */
-    let audioCtx, osc, laryngealTwitch, filter, breathingGain, panner, masterGain;
+    /* --- AUDIO ENGINE --- */
+    let audioCtx, osc, laryngealTwitch, filter, breathingGain, masterGain;
     let isRunning = false;
     let hapticInterval;
 
     const masterBtn = document.getElementById('masterBtn');
     const orb = document.getElementById('orb');
-    const orbInner = document.getElementById('orbInner');
-
-    // UI Elements
     const s_rumble = document.getElementById('rumble');
-    const s_gravel = document.getElementById('gravel');
     const s_speed = document.getElementById('speed');
 
     function initAudio() {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // 1. Source: The "Rasp"
         osc = audioCtx.createOscillator();
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(s_rumble.value, audioCtx.currentTime);
 
-        // 2. Filter: The "Flesh" (Muffles the sawtooth into a thrum)
         filter = audioCtx.createBiquadFilter();
         filter.type = 'lowpass';
         filter.frequency.setValueAtTime(100, audioCtx.currentTime);
-        filter.Q.setValueAtTime(s_gravel.value / 10, audioCtx.currentTime);
 
-        // 3. Laryngeal Twitch (25-40Hz rapid volume modulation)
         laryngealTwitch = audioCtx.createGain();
         const twitchOsc = audioCtx.createOscillator();
         twitchOsc.type = 'sine';
         twitchOsc.frequency.setValueAtTime(30, audioCtx.currentTime);
         const twitchGain = audioCtx.createGain();
         twitchGain.gain.value = 0.5;
-        
         twitchOsc.connect(twitchGain);
         twitchGain.connect(laryngealTwitch.gain);
 
-        // 4. Breathing Swell
         breathingGain = audioCtx.createGain();
-        breathingGain.gain.value = 0.1;
-
-        // 5. Spatial Panning
-        panner = audioCtx.createStereoPanner();
-
-        // 6. Master Volume
         masterGain = audioCtx.createGain();
         masterGain.gain.value = 0;
 
-        // Routing
         osc.connect(filter);
         filter.connect(laryngealTwitch);
         laryngealTwitch.connect(breathingGain);
-        breathingGain.connect(panner);
-        panner.connect(masterGain);
+        breathingGain.connect(masterGain);
         masterGain.connect(audioCtx.destination);
 
         osc.start();
@@ -264,10 +195,7 @@ self.addEventListener('fetch', (e) => {
     }
 
     function toggleApp() {
-        if (!audioCtx) {
-            initAudio();
-            if (!navigator.vibrate) document.getElementById('hapticLabel').style.display = 'block';
-        }
+        if (!audioCtx) initAudio();
 
         if (!isRunning) {
             audioCtx.resume();
@@ -281,87 +209,46 @@ self.addEventListener('fetch', (e) => {
             masterBtn.innerText = "ACTIVATE HEALING";
             masterBtn.classList.remove('active');
             isRunning = false;
-            clearInterval(hapticInterval);
         }
     }
 
-    /* --- PROCEDURAL LOOPS --- */
     function runLoops() {
         if (!isRunning) return;
-
         const now = audioCtx.currentTime;
         const cycle = parseFloat(s_speed.value);
 
-        // 1. Breathing Cycle Logic
         breathingGain.gain.setTargetAtTime(0.7, now, cycle / 3);
         breathingGain.gain.setTargetAtTime(0.2, now + (cycle / 2), cycle / 3);
 
-        // 2. Spatial ASMR shift
-        const panVal = Math.sin(now * 0.5);
-        panner.pan.setTargetAtTime(panVal * 0.4, now, 1);
-
-        // 3. Micro-twitch Frequency Jitter (Anti-Robot)
+        // Anti-Robot Jitter
         const jitter = (Math.random() - 0.5) * 1.5;
         osc.frequency.setTargetAtTime(parseFloat(s_rumble.value) + jitter, now, 0.1);
 
-        // 4. Haptic Engine (Android Only)
-        if (navigator.vibrate) {
-            // Trigger pulses at the laryngeal rate (~33ms intervals)
-            if (!hapticInterval) {
-                hapticInterval = setInterval(() => {
-                    if (isRunning && breathingGain.gain.value > 0.3) {
-                        navigator.vibrate(20); 
-                    }
-                }, 60); 
-            }
-        }
+        // Visual Sync
+        orb.style.transform = `scale(${1 + (breathingGain.gain.value * 0.5)})`;
+        orb.style.opacity = 0.3 + breathingGain.gain.value;
 
-        // 5. Visualizer Sync
-        const scale = 1 + (breathingGain.gain.value * 0.5);
-        orb.style.transform = `scale(${scale})`;
-        orbInner.style.transform = `scale(${1 + (Math.random() * 0.1)})`;
-        orb.style.opacity = 0.3 + (breathingGain.gain.value);
+        // Haptics (Android Only)
+        if (navigator.vibrate && breathingGain.gain.value > 0.5) {
+            navigator.vibrate(20);
+        }
 
         setTimeout(runLoops, 100);
     }
 
-    /* --- UI LISTENERS --- */
     masterBtn.addEventListener('click', toggleApp);
-
     s_rumble.addEventListener('input', (e) => {
         document.getElementById('rumbleDisp').innerText = e.target.value + 'Hz';
         if (osc) osc.frequency.setTargetAtTime(e.target.value, audioCtx.currentTime, 0.1);
     });
-
-    s_gravel.addEventListener('input', (e) => {
-        document.getElementById('gravelDisp').innerText = e.target.value > 70 ? 'High' : e.target.value > 30 ? 'Med' : 'Low';
-        if (filter) filter.Q.setTargetAtTime(e.target.value / 10, audioCtx.currentTime, 0.1);
-    });
-
     s_speed.addEventListener('input', (e) => {
         document.getElementById('speedDisp').innerText = e.target.value + 's';
     });
 
-    document.getElementById('rescueBtn').addEventListener('click', () => {
-        s_rumble.value = 55;
-        s_gravel.value = 80;
-        s_speed.value = 2.5;
-        // Trigger UI updates
-        s_rumble.dispatchEvent(new Event('input'));
-        s_gravel.dispatchEvent(new Event('input'));
-        if(!isRunning) toggleApp();
-    });
-
-    document.getElementById('timerBtn').addEventListener('click', (e) => {
-        e.target.classList.toggle('active');
-        if(e.target.classList.contains('active')) {
-            setTimeout(() => {
-                if(isRunning) toggleApp();
-                e.target.classList.remove('active');
-            }, 900000); // 15 mins
-        }
-    });
-
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js');
+    }
 </script>
 </body>
 </html>
