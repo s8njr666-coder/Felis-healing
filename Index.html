@@ -1,0 +1,367 @@
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open('felis-v1').then((cache) => cache.addAll(['index.html'])));
+});
+self.addEventListener('fetch', (e) => {
+  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
+});{
+  "name": "FelisHealing",
+  "short_name": "FelisHealing",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1864/1864514.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#000000">
+    <title>Felis-Healing | Bio-Acoustic Therapy</title>
+    <style>
+        :root {
+            --bg: #000000;
+            --card: #1c1c1e;
+            --accent: #007AFF;
+            --healing: #AF52DE;
+            --text: #ffffff;
+            --subtext: #8e8e93;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .app-container {
+            width: 90%;
+            max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            justify-content: space-evenly;
+            padding: 20px 0;
+        }
+
+        /* --- Visualizer Orb --- */
+        .visual-container {
+            position: relative;
+            height: 200px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .orb {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(10px);
+            opacity: 0.5;
+            transition: transform 0.1s ease-out;
+        }
+
+        .orb-inner {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: var(--healing);
+            border-radius: 50%;
+            filter: blur(5px);
+            box-shadow: 0 0 30px var(--healing);
+        }
+
+        /* --- Controls --- */
+        .main-toggle {
+            width: 100%;
+            padding: 25px;
+            border-radius: 20px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            box-shadow: 0 10px 30px rgba(0, 122, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .main-toggle.active {
+            background: #ff3b30;
+            box-shadow: 0 10px 30px rgba(255, 59, 48, 0.3);
+        }
+
+        .control-panel {
+            background: var(--card);
+            padding: 20px;
+            border-radius: 24px;
+            display: grid;
+            gap: 20px;
+        }
+
+        .slider-box { display: flex; flex-direction: column; gap: 8px; }
+        .slider-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--subtext); text-transform: uppercase; letter-spacing: 1px; }
+        .slider-val { color: var(--accent); font-weight: bold; }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: #3a3a3c;
+            border-radius: 3px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 28px;
+            width: 28px;
+            border-radius: 50%;
+            background: white;
+            margin-top: -11px;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+        }
+
+        /* --- Utility Buttons --- */
+        .btn-row { display: flex; gap: 10px; }
+        .util-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #3a3a3c;
+            background: transparent;
+            color: var(--subtext);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .util-btn.active { border-color: var(--healing); color: var(--healing); }
+
+        .rescue-mode {
+            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            color: #000;
+            border: none;
+        }
+
+        #hapticLabel { font-size: 0.7rem; color: #ff3b30; margin-top: 5px; display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="visual-container">
+            <div id="orb" class="orb"></div>
+            <div id="orbInner" class="orb-inner"></div>
+        </div>
+
+        <button id="masterBtn" class="main-toggle">ACTIVATE HEALING</button>
+
+        <div class="control-panel">
+            <div class="slider-box">
+                <div class="slider-header">Rumble Depth <span class="slider-val" id="rumbleDisp">25Hz</span></div>
+                <input type="range" id="rumble" min="20" max="60" value="25">
+            </div>
+
+            <div class="slider-box">
+                <div class="slider-header">Gravel / Texture <span class="slider-val" id="gravelDisp">Low</span></div>
+                <input type="range" id="gravel" min="0" max="100" value="30">
+            </div>
+
+            <div class="slider-box">
+                <div class="slider-header">Breathing Speed <span class="slider-val" id="speedDisp">4.0s</span></div>
+                <input type="range" id="speed" min="2" max="8" step="0.5" value="4">
+            </div>
+
+            <div class="btn-row">
+                <button class="util-btn" id="timerBtn">15 MIN TIMER</button>
+                <button class="util-btn rescue-mode" id="rescueBtn">TNR RESCUE</button>
+            </div>
+            <div id="hapticLabel">Haptics unavailable on this device</div>
+        </div>
+    </div>
+
+<script>
+    /* --- CORE AUDIO ENGINE --- */
+    let audioCtx, osc, laryngealTwitch, filter, breathingGain, panner, masterGain;
+    let isRunning = false;
+    let hapticInterval;
+
+    const masterBtn = document.getElementById('masterBtn');
+    const orb = document.getElementById('orb');
+    const orbInner = document.getElementById('orbInner');
+
+    // UI Elements
+    const s_rumble = document.getElementById('rumble');
+    const s_gravel = document.getElementById('gravel');
+    const s_speed = document.getElementById('speed');
+
+    function initAudio() {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 1. Source: The "Rasp"
+        osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(s_rumble.value, audioCtx.currentTime);
+
+        // 2. Filter: The "Flesh" (Muffles the sawtooth into a thrum)
+        filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(100, audioCtx.currentTime);
+        filter.Q.setValueAtTime(s_gravel.value / 10, audioCtx.currentTime);
+
+        // 3. Laryngeal Twitch (25-40Hz rapid volume modulation)
+        laryngealTwitch = audioCtx.createGain();
+        const twitchOsc = audioCtx.createOscillator();
+        twitchOsc.type = 'sine';
+        twitchOsc.frequency.setValueAtTime(30, audioCtx.currentTime);
+        const twitchGain = audioCtx.createGain();
+        twitchGain.gain.value = 0.5;
+        
+        twitchOsc.connect(twitchGain);
+        twitchGain.connect(laryngealTwitch.gain);
+
+        // 4. Breathing Swell
+        breathingGain = audioCtx.createGain();
+        breathingGain.gain.value = 0.1;
+
+        // 5. Spatial Panning
+        panner = audioCtx.createStereoPanner();
+
+        // 6. Master Volume
+        masterGain = audioCtx.createGain();
+        masterGain.gain.value = 0;
+
+        // Routing
+        osc.connect(filter);
+        filter.connect(laryngealTwitch);
+        laryngealTwitch.connect(breathingGain);
+        breathingGain.connect(panner);
+        panner.connect(masterGain);
+        masterGain.connect(audioCtx.destination);
+
+        osc.start();
+        twitchOsc.start();
+    }
+
+    function toggleApp() {
+        if (!audioCtx) {
+            initAudio();
+            if (!navigator.vibrate) document.getElementById('hapticLabel').style.display = 'block';
+        }
+
+        if (!isRunning) {
+            audioCtx.resume();
+            masterGain.gain.setTargetAtTime(0.8, audioCtx.currentTime, 0.5);
+            masterBtn.innerText = "DEACTIVATE";
+            masterBtn.classList.add('active');
+            isRunning = true;
+            runLoops();
+        } else {
+            masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+            masterBtn.innerText = "ACTIVATE HEALING";
+            masterBtn.classList.remove('active');
+            isRunning = false;
+            clearInterval(hapticInterval);
+        }
+    }
+
+    /* --- PROCEDURAL LOOPS --- */
+    function runLoops() {
+        if (!isRunning) return;
+
+        const now = audioCtx.currentTime;
+        const cycle = parseFloat(s_speed.value);
+
+        // 1. Breathing Cycle Logic
+        breathingGain.gain.setTargetAtTime(0.7, now, cycle / 3);
+        breathingGain.gain.setTargetAtTime(0.2, now + (cycle / 2), cycle / 3);
+
+        // 2. Spatial ASMR shift
+        const panVal = Math.sin(now * 0.5);
+        panner.pan.setTargetAtTime(panVal * 0.4, now, 1);
+
+        // 3. Micro-twitch Frequency Jitter (Anti-Robot)
+        const jitter = (Math.random() - 0.5) * 1.5;
+        osc.frequency.setTargetAtTime(parseFloat(s_rumble.value) + jitter, now, 0.1);
+
+        // 4. Haptic Engine (Android Only)
+        if (navigator.vibrate) {
+            // Trigger pulses at the laryngeal rate (~33ms intervals)
+            if (!hapticInterval) {
+                hapticInterval = setInterval(() => {
+                    if (isRunning && breathingGain.gain.value > 0.3) {
+                        navigator.vibrate(20); 
+                    }
+                }, 60); 
+            }
+        }
+
+        // 5. Visualizer Sync
+        const scale = 1 + (breathingGain.gain.value * 0.5);
+        orb.style.transform = `scale(${scale})`;
+        orbInner.style.transform = `scale(${1 + (Math.random() * 0.1)})`;
+        orb.style.opacity = 0.3 + (breathingGain.gain.value);
+
+        setTimeout(runLoops, 100);
+    }
+
+    /* --- UI LISTENERS --- */
+    masterBtn.addEventListener('click', toggleApp);
+
+    s_rumble.addEventListener('input', (e) => {
+        document.getElementById('rumbleDisp').innerText = e.target.value + 'Hz';
+        if (osc) osc.frequency.setTargetAtTime(e.target.value, audioCtx.currentTime, 0.1);
+    });
+
+    s_gravel.addEventListener('input', (e) => {
+        document.getElementById('gravelDisp').innerText = e.target.value > 70 ? 'High' : e.target.value > 30 ? 'Med' : 'Low';
+        if (filter) filter.Q.setTargetAtTime(e.target.value / 10, audioCtx.currentTime, 0.1);
+    });
+
+    s_speed.addEventListener('input', (e) => {
+        document.getElementById('speedDisp').innerText = e.target.value + 's';
+    });
+
+    document.getElementById('rescueBtn').addEventListener('click', () => {
+        s_rumble.value = 55;
+        s_gravel.value = 80;
+        s_speed.value = 2.5;
+        // Trigger UI updates
+        s_rumble.dispatchEvent(new Event('input'));
+        s_gravel.dispatchEvent(new Event('input'));
+        if(!isRunning) toggleApp();
+    });
+
+    document.getElementById('timerBtn').addEventListener('click', (e) => {
+        e.target.classList.toggle('active');
+        if(e.target.classList.contains('active')) {
+            setTimeout(() => {
+                if(isRunning) toggleApp();
+                e.target.classList.remove('active');
+            }, 900000); // 15 mins
+        }
+    });
+
+</script>
+</body>
+</html>
