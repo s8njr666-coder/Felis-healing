@@ -260,6 +260,232 @@
         document.addEventListener('DOMContentLoaded', () => new PurrEngine());
     </script>
 </body>
+</html>        .visual-container { 
+            height: 180px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        .orb { 
+            width: 120px; 
+            height: 120px; 
+            background: radial-gradient(circle, var(--accent) 0%, transparent 70%); 
+            border-radius: 50%; 
+            filter: blur(10px); 
+            opacity: 0.5; 
+            will-change: transform, opacity; 
+        }
+        .main-toggle { 
+            padding: 25px; 
+            border-radius: 20px; 
+            border: none; 
+            background: var(--accent); 
+            color: white; 
+            font-size: 1.4rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: background 0.3s; 
+        }
+        .main-toggle.active { 
+            background: #ff3b30; 
+        }
+        .control-panel { 
+            background: var(--card); 
+            padding: 20px; 
+            border-radius: 24px; 
+            display: grid; 
+            gap: 15px; 
+        }
+        .slider-header { 
+            display: flex; 
+            justify-content: space-between; 
+            font-size: 0.7rem; 
+            color: var(--subtext); 
+            text-transform: uppercase; 
+        }
+        .slider-val { 
+            color: var(--accent); 
+            font-weight: bold; 
+        }
+        input[type=range] { 
+            -webkit-appearance: none; 
+            width: 100%; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-runnable-track { 
+            height: 4px; 
+            background: #3a3a3c; 
+            border-radius: 2px; 
+        }
+        input[type=range]::-webkit-slider-thumb { 
+            -webkit-appearance: none; 
+            height: 24px; 
+            width: 24px; 
+            border-radius: 50%; 
+            background: white; 
+            margin-top: -10px; 
+            cursor: pointer; 
+        }
+    </style>
+</head>
+<body>
+    <main class="app-container">
+        <div class="visual-container">
+            <div id="orb" class="orb"></div>
+        </div>
+        <button id="masterBtn" class="main-toggle" aria-pressed="false">ACTIVATE HEALING</button>
+        <section class="control-panel">
+            <div>
+                <div class="slider-header">
+                    <span>Bone/Tissue Freq</span>
+                    <span class="slider-val" id="rumbleDisp">25Hz</span>
+                </div>
+                <input type="range" id="rumble" min="20" max="60" value="25" aria-label="Rumble Frequency">
+            </div>
+            <div>
+                <div class="slider-header">
+                    <span>Breathing Cycle</span>
+                    <span class="slider-val" id="speedDisp">4.0s</span>
+                </div>
+                <input type="range" id="speed" min="2" max="8" step="0.5" value="4" aria-label="Breathing Speed">
+            </div>
+        </section>
+    </main>
+    <script>
+        class PurrEngine {
+            constructor() {
+                this.ctx = null; 
+                this.isRunning = false; 
+                this.nodes = {}; 
+                this.rAF = null; 
+                this.hapticReady = true;
+                this.suspendTimeout = null;
+                this.ui = { 
+                    btn: document.getElementById('masterBtn'), 
+                    orb: document.getElementById('orb'), 
+                    rumble: document.getElementById('rumble'), 
+                    speed: document.getElementById('speed'), 
+                    rumbleDisp: document.getElementById('rumbleDisp'), 
+                    speedDisp: document.getElementById('speedDisp') 
+                };
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                this.ui.btn.addEventListener('click', () => this.toggle());
+                
+                this.ui.rumble.addEventListener('input', (e) => { 
+                    this.ui.rumbleDisp.textContent = `${e.target.value}Hz`; 
+                    if (this.nodes.base) {
+                        this.nodes.base.frequency.setTargetAtTime(e.target.value, this.ctx.currentTime, 0.1); 
+                    }
+                });
+                
+                this.ui.speed.addEventListener('input', (e) => {
+                    this.ui.speedDisp.textContent = `${e.target.value}s`;
+                });
+            }
+
+            initAudio() {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                this.nodes.base = this.ctx.createOscillator(); 
+                this.nodes.base.type = 'sawtooth'; 
+                this.nodes.base.frequency.value = this.ui.rumble.value;
+                
+                this.nodes.filter = this.ctx.createBiquadFilter(); 
+                this.nodes.filter.type = 'lowpass'; 
+                this.nodes.filter.frequency.value = 100;
+                
+                this.nodes.twitch = this.ctx.createOscillator(); 
+                this.nodes.twitch.type = 'sine'; 
+                this.nodes.twitch.frequency.value = 30;
+                
+                this.nodes.twitchGain = this.ctx.createGain(); 
+                this.nodes.twitchGain.gain.value = 0.5;
+                
+                this.nodes.laryngeal = this.ctx.createGain(); 
+                this.nodes.breathing = this.ctx.createGain();
+                
+                this.nodes.master = this.ctx.createGain(); 
+                this.nodes.master.gain.value = 0;
+                
+                this.nodes.base.connect(this.nodes.filter)
+                    .connect(this.nodes.laryngeal)
+                    .connect(this.nodes.breathing)
+                    .connect(this.nodes.master)
+                    .connect(this.ctx.destination);
+                    
+                this.nodes.twitch.connect(this.nodes.twitchGain)
+                    .connect(this.nodes.laryngeal.gain);
+                    
+                this.nodes.base.start(); 
+                this.nodes.twitch.start();
+            }
+
+            toggle() {
+                if (!this.ctx) this.initAudio();
+                
+                if (this.suspendTimeout) {
+                    clearTimeout(this.suspendTimeout);
+                    this.suspendTimeout = null;
+                }
+                
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+                
+                this.isRunning = !this.isRunning;
+                
+                if (this.isRunning) {
+                    this.nodes.master.gain.setTargetAtTime(0.8, this.ctx.currentTime, 0.5);
+                    this.ui.btn.textContent = 'DEACTIVATE'; 
+                    this.ui.btn.classList.add('active'); 
+                    this.ui.btn.setAttribute('aria-pressed', 'true');
+                    this.loop();
+                } else {
+                    this.nodes.master.gain.setTargetAtTime(0, this.ctx.currentTime, 0.3);
+                    this.ui.btn.textContent = 'ACTIVATE HEALING'; 
+                    this.ui.btn.classList.remove('active'); 
+                    this.ui.btn.setAttribute('aria-pressed', 'false');
+                    cancelAnimationFrame(this.rAF);
+                    this.suspendTimeout = setTimeout(() => {
+                        if (!this.isRunning && this.ctx.state !== 'suspended') {
+                            this.ctx.suspend();
+                        }
+                    }, 500);
+                }
+            }
+
+            loop() {
+                if (!this.isRunning) return;
+                
+                const time = performance.now() / 1000; 
+                const cycle = parseFloat(this.ui.speed.value);
+                const breath = (Math.sin((time % cycle) / cycle * Math.PI * 2) + 1) / 2;
+                const targetVol = 0.2 + (breath * 0.5);
+                
+                this.nodes.breathing.gain.value = targetVol;
+                
+                this.ui.orb.style.transform = `scale(${1 + targetVol * 0.5})`; 
+                this.ui.orb.style.opacity = 0.3 + targetVol;
+                
+                if (navigator.vibrate) {
+                    if (breath > 0.9 && this.hapticReady) { 
+                        navigator.vibrate(20); 
+                        this.hapticReady = false; 
+                    } else if (breath < 0.5) { 
+                        this.hapticReady = true; 
+                    }
+                }
+                
+                this.rAF = requestAnimationFrame(() => this.loop());
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => new PurrEngine());
+    </script>
+</body>
 </html>        .app-container {
             width: 90%;
             max-width: 450px;
